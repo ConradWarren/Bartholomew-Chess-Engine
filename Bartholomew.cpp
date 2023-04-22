@@ -1,8 +1,8 @@
 #include<iostream>
 
 #include "Board_State_Class.h"
-#include "Move_Generation.h"
-//#include "PV_Class.h"
+#include "Bartholomew.h"
+#include "PV_Class.h"
 #include <nmmintrin.h>
 
 #define U64 unsigned long long
@@ -362,7 +362,7 @@ U64 Get_Rook_Attacks(int square, U64 occupancy) {
 	return Rook_Attack_Table[square][occupancy];
 }
 
-U64 Get_Queen_Attacks(int square, const U64& occupancy) {
+U64 Get_Queen_Attacks(int square,U64 occupancy) {
 
 	return (Get_Bishop_Attacks(square, occupancy) | Get_Rook_Attacks(square, occupancy));
 }
@@ -988,6 +988,364 @@ void Perft_Test(const Board_State& Board, int depth, long long& nodes) {
 			std::cout << " " << nodes - cummulative_nodes << "\n";
 			Temp_Board = Board;
 		}
+	}
+
+}
+
+
+
+static inline int Evaluate(const Board_State& Board) {
+
+	int Eval = 0;
+
+	Eval += (count_bits(Board.Bitboards[P]) * 100);
+	Eval += (count_bits(Board.Bitboards[N]) * 300);
+	Eval += (count_bits(Board.Bitboards[B]) * 330);
+	Eval += (count_bits(Board.Bitboards[R]) * 500);
+	Eval += (count_bits(Board.Bitboards[Q]) * 900);
+
+	Eval -= (count_bits(Board.Bitboards[p]) * 100);
+	Eval -= (count_bits(Board.Bitboards[n]) * 300);
+	Eval -= (count_bits(Board.Bitboards[b]) * 330);
+	Eval -= (count_bits(Board.Bitboards[r]) * 500);
+	Eval -= (count_bits(Board.Bitboards[q]) * 900);
+
+
+
+	U64 Current_Bitboard = Board.Bitboards[P];
+	U64 Attacks = 0ULL;
+	int square = no_sq;
+
+	Current_Bitboard &= (Not_A_File & Not_H_File);
+	Eval += count_bits(Current_Bitboard);
+
+	Current_Bitboard = Board.Bitboards[N];
+	while (Current_Bitboard) {
+		square = Least_Signifigant_Bit_Index(Current_Bitboard);
+		Attacks = Knight_Attack_Table[square];
+		Eval += count_bits(Attacks);
+		pop_bit(Current_Bitboard, square);
+	}
+
+	Current_Bitboard = Board.Bitboards[B];
+	while (Current_Bitboard) {
+		square = Least_Signifigant_Bit_Index(Current_Bitboard);
+		Attacks = Get_Bishop_Attacks(square, Board.Occupancies[both]);
+		Eval += count_bits(Attacks);
+		pop_bit(Current_Bitboard, square);
+	}
+
+	Current_Bitboard = Board.Bitboards[R];
+	while (Current_Bitboard) {
+		square = Least_Signifigant_Bit_Index(Current_Bitboard);
+		Attacks = Get_Rook_Attacks(square, Board.Occupancies[both]);
+		Attacks &= Board.Bitboards[R];
+		if (Attacks) Eval += count_bits(8ULL);
+		pop_bit(Current_Bitboard, square);
+	}
+
+	Current_Bitboard = Board.Bitboards[p];
+	Current_Bitboard &= (Not_A_File & Not_H_File);
+	Eval += count_bits(Current_Bitboard);
+
+	Current_Bitboard = Board.Bitboards[n];
+	while (Current_Bitboard) {
+		square = Least_Signifigant_Bit_Index(Current_Bitboard);
+		Attacks = Knight_Attack_Table[square];
+		Eval -= count_bits(Attacks);
+		pop_bit(Current_Bitboard, square);
+	}
+
+	Current_Bitboard = Board.Bitboards[b];
+	while (Current_Bitboard) {
+		square = Least_Signifigant_Bit_Index(Current_Bitboard);
+		Attacks = Get_Bishop_Attacks(square, Board.Occupancies[both]);
+		Eval -= count_bits(Attacks);
+		pop_bit(Current_Bitboard, square);
+	}
+
+	Current_Bitboard = Board.Bitboards[r];
+	while (Current_Bitboard) {
+		square = Least_Signifigant_Bit_Index(Current_Bitboard);
+		Attacks = Get_Rook_Attacks(square, Board.Occupancies[both]);
+		Attacks &= Board.Bitboards[r];
+		if (Attacks) Eval -= count_bits(8ULL);
+		pop_bit(Current_Bitboard, square);
+	}
+
+	return (Board.side == white) ? Eval : -Eval;
+}
+
+const static int mvv_lva[12][12] = {
+	105, 205, 305, 405, 505, 605,  105, 205, 305, 405, 505, 605,
+	104, 204, 304, 404, 504, 604,  104, 204, 304, 404, 504, 604,
+	103, 203, 303, 403, 503, 603,  103, 203, 303, 403, 503, 603,
+	102, 202, 302, 402, 502, 602,  102, 202, 302, 402, 502, 602,
+	101, 201, 301, 401, 501, 601,  101, 201, 301, 401, 501, 601,
+	100, 200, 300, 400, 500, 600,  100, 200, 300, 400, 500, 600,
+
+	105, 205, 305, 405, 505, 605,  105, 205, 305, 405, 505, 605,
+	104, 204, 304, 404, 504, 604,  104, 204, 304, 404, 504, 604,
+	103, 203, 303, 403, 503, 603,  103, 203, 303, 403, 503, 603,
+	102, 202, 302, 402, 502, 602,  102, 202, 302, 402, 502, 602,
+	101, 201, 301, 401, 501, 601,  101, 201, 301, 401, 501, 601,
+	100, 200, 300, 400, 500, 600,  100, 200, 300, 400, 500, 600
+};
+
+
+
+static inline void Enable_PV_scoring(const moves& Move_List, PV& pv) {
+
+	pv.follow_pv_flag = false;
+
+	for (int i = 0; i < Move_List.count; i++) {
+		if (pv.pv_table[0][pv.ply] == Move_List.moves[i]) {
+
+			pv.score_pv_flag = true;
+
+			pv.follow_pv_flag = true;
+
+			break;
+		}
+	}
+}
+
+static inline int Score_Move(int move, const Board_State& Board, PV& pv) {
+
+	if (pv.score_pv_flag && pv.pv_table[0][pv.ply] == move) {
+		pv.score_pv_flag = false;
+		return 20000;
+	}
+
+	if (get_move_capture(move)) {
+		for (int i = 0; i < 12; i++) {
+			if (get_bit(Board.Bitboards[i], get_move_target(move))) {
+				return (mvv_lva[get_move_piece(move)][i] + 10000);
+			}
+		}
+		return 10105;
+	}
+	else {
+
+		if (pv.killer_moves[0][pv.ply] == move) {
+			return 9000;
+		}
+		else if (pv.killer_moves[1][pv.ply] == move) {
+			return 8000;
+		}
+		else {
+			return pv.history_moves[get_move_piece(move)][get_move_target(move)];
+		}
+
+	}
+
+}
+
+static inline void Sort_Moves(moves& move_list, const Board_State& Board, PV& pv) {
+
+	int move_score[256];
+
+	for (int i = 0; i < move_list.count; i++) {
+		move_score[i] = Score_Move(move_list.moves[i], Board, pv);
+	}
+
+	//Currently a dual swap sort system, O(n^2) time complexty and an extra 256 integers are being allocated to the stack. 
+	//Built in sort functions are few orders of magnitude slower due to extra memory allocation.
+	//Will need to be made into a quick sort for performace later
+
+
+	int Temp_Score, Temp_Move;
+	for (int current_move = 0; current_move < move_list.count; current_move++) {
+		for (int next_move = current_move + 1; next_move < move_list.count; next_move++) {
+			if (move_score[current_move] < move_score[next_move]) {
+
+				Temp_Score = move_score[current_move];
+				move_score[current_move] = move_score[next_move];
+				move_score[next_move] = Temp_Score;
+
+				Temp_Move = move_list.moves[current_move];
+				move_list.moves[current_move] = move_list.moves[next_move];
+				move_list.moves[next_move] = Temp_Move;
+			}
+		}
+	}
+}
+static inline int Capture_Negamax_Search(int alpha, int beta, PV& pv, const Board_State& Board) {
+
+	int Eval = Evaluate(Board);
+
+	if (Eval >= beta) {
+		return beta;
+	}
+
+	if (Eval > alpha) {
+		alpha = Eval;
+	}
+
+	moves Move_List;
+	Move_List.count = 0;
+	Generate_Sudo_Legal_Captures(Board, Move_List);
+
+	Sort_Moves(Move_List, Board, pv);
+
+	Board_State Temp_Board = Board;
+	for (int i = 0; i < Move_List.count; i++) {
+		pv.ply++;
+		Make_Move(Temp_Board, Move_List.moves[i]);
+		if (Board.side == white && Is_Square_Attacked(Least_Signifigant_Bit_Index(Temp_Board.Bitboards[K]), black, Temp_Board)) {
+			pv.ply--;
+			Temp_Board = Board;
+			continue;
+		}
+		else if (Board.side == black && Is_Square_Attacked(Least_Signifigant_Bit_Index(Temp_Board.Bitboards[k]), white, Temp_Board)) {
+			pv.ply--;
+			Temp_Board = Board;
+			continue;
+		}
+
+		int score = -Capture_Negamax_Search(-beta, -alpha, pv, Temp_Board);
+
+		pv.ply--;
+
+		Temp_Board = Board;
+
+		if (score >= beta) {
+			return beta;
+		}
+
+		if (score > alpha) {
+			alpha = score;
+		}
+	}
+	return alpha;
+}
+
+static inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const Board_State& Board) {
+
+	pv.pv_length[pv.ply] = pv.ply;
+
+	if (depth == 0) {
+		return Capture_Negamax_Search(alpha, beta, pv, Board);
+	}
+
+	if (pv.ply >= max_ply) {
+		return Evaluate(Board);
+	}
+
+	int old_alpha = alpha;
+
+	bool Found_Move_Flag = false;
+
+	moves Move_List;
+	Move_List.count = 0;
+	Generate_Sudo_Legal_Moves(Board, Move_List);
+
+	if (pv.follow_pv_flag) {
+		Enable_PV_scoring(Move_List, pv);
+	}
+
+	Sort_Moves(Move_List, Board, pv);
+
+	int Legal_Moves = 0;
+	bool in_check = Is_Square_Attacked((Board.side == white) ? Least_Signifigant_Bit_Index(Board.Bitboards[K]) : Least_Signifigant_Bit_Index(Board.Bitboards[k]), Board.side ^ 1, Board);
+
+	if (in_check) {
+		depth++;
+	}
+
+
+	Board_State Temp_Board = Board;
+	for (int i = 0; i < Move_List.count; i++) {
+		pv.ply++;
+		Make_Move(Temp_Board, Move_List.moves[i]);
+		if (Board.side == white && Is_Square_Attacked(Least_Signifigant_Bit_Index(Temp_Board.Bitboards[K]), black, Temp_Board)) {
+			pv.ply--;
+			Temp_Board = Board;
+			continue;
+		}
+		else if (Board.side == black && Is_Square_Attacked(Least_Signifigant_Bit_Index(Temp_Board.Bitboards[k]), white, Temp_Board)) {
+			pv.ply--;
+			Temp_Board = Board;
+			continue;
+		}
+		Legal_Moves++;
+
+		int score;
+
+		if (Found_Move_Flag) {
+			score = -Negamax_Search(-alpha - 1, -alpha, depth - 1, pv, Temp_Board);
+			if ((score > alpha) && (score < beta)) {
+				score = -Negamax_Search(-beta, -alpha, depth - 1, pv, Temp_Board);
+			}
+		}
+		else {
+			score = -Negamax_Search(-beta, -alpha, depth - 1, pv, Temp_Board);
+		}
+
+		pv.ply--;
+		Temp_Board = Board;
+
+		if (score >= beta) {
+
+			if (!get_move_capture(Move_List.moves[i])) {
+				pv.killer_moves[1][pv.ply] = pv.killer_moves[0][pv.ply];
+				pv.killer_moves[0][pv.ply] = Move_List.moves[i];
+			}
+			return beta;
+		}
+
+		if (score > alpha) {
+
+			alpha = score;
+
+			Found_Move_Flag = true;
+
+			if (!get_move_capture(Move_List.moves[i])) {
+				pv.history_moves[get_move_piece(Move_List.moves[i])][get_move_target(Move_List.moves[i])] += depth;
+			}
+
+			pv.pv_table[pv.ply][pv.ply] = Move_List.moves[i];
+			for (int next_ply = pv.ply + 1; next_ply < pv.pv_length[pv.ply + 1]; next_ply++) {
+				pv.pv_table[pv.ply][next_ply] = pv.pv_table[pv.ply + 1][next_ply];
+			}
+			pv.pv_length[pv.ply] = pv.pv_length[pv.ply + 1];
+
+		}
+	}
+
+	if (Legal_Moves == 0) {
+		if (in_check) {
+			return -99000 + pv.ply;
+		}
+		else {
+			return 0;
+		}
+	}
+
+	return alpha;
+}
+
+void Bartholomew(Board_State& Board) {
+
+	std::string Promoted_Peices = " NBRQ  nbrqk";
+
+	PV pv = PV();
+
+	int score = 0;
+
+	//nodes = 0;
+
+	for (int current_depth = 1; current_depth < 8; current_depth++) {
+		pv.follow_pv_flag = true;
+		score = Negamax_Search(-100000, 100000, current_depth, pv, Board);
+	}
+	//std::cout << "nodes searched = " << nodes << '\n';
+
+	if (pv.pv_table[0][0] == 0) {
+		std::cout << "Game over\n";
+	}
+	else {
+		Make_Move(Board, pv.pv_table[0][0]);
 	}
 
 }
