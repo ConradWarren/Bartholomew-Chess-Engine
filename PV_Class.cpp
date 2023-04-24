@@ -1,6 +1,7 @@
 #include "PV_Class.h"
 
 PV::PV() {
+	nodes = 0;
 	ply = 0;
 	follow_pv_flag = false;
 	score_pv_flag = false;
