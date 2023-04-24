@@ -4,6 +4,7 @@
 class PV {
 public:
 	PV();
+	int nodes;
 	int ply;
 	int killer_moves[2][max_ply];
 	int history_moves[12][64];
