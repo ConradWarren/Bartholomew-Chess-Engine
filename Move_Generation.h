@@ -13,4 +13,4 @@ void Make_Move(Board_State& Board, int move);
 
 void Perft_Test(const Board_State& Board, int depth, long long& nodes);
 
-void Bartholomew(Board_State& Board);
+static inline int Evaluate(const Board_State& Board);
