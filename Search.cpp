@@ -1,7 +1,8 @@
-#include "Search.h"
 #include "Board_State_Class.h"
 #include "PV_Class.h"
+#include "Search.h"
 #include "Move_Generation.h"
+#include "UCI_Interface.h"
 
 
 #include <iostream>
@@ -54,7 +55,7 @@ const static int mvv_lva[12][12] = {
 	100, 200, 300, 400, 500, 600,  100, 200, 300, 400, 500, 600
 };
 
-int Least_Signifigant_Bit_Index(const U64& bitboard) {
+static int Least_Signifigant_Bit_Index(const U64& bitboard) {
 	if (bitboard) return int(count_bits((bitboard & (0 - bitboard)) - 1));
 	else return -1;
 }
@@ -118,7 +119,6 @@ static inline void Sort_Moves(moves& move_list, const Board_State& Board, PV& pv
 	//Built in sort functions are few orders of magnitude slower due to extra memory allocation.
 	//Will need to be made into a quick sort for performace later
 
-
 	int Temp_Score, Temp_Move;
 	for (int current_move = 0; current_move < move_list.count; current_move++) {
 		for (int next_move = current_move + 1; next_move < move_list.count; next_move++) {
@@ -149,16 +149,16 @@ static inline int Capture_Negamax_Search(int alpha, int beta, PV& pv, const Boar
 		alpha = Eval;
 	}
 
-	moves Move_List;
-	Move_List.count = 0;
-	Generate_Sudo_Legal_Captures(Board, Move_List);
+	moves move_list;
+	move_list.count = 0;
+	Generate_Sudo_Legal_Captures(Board, move_list);
 
-	Sort_Moves(Move_List, Board, pv);
+	Sort_Moves(move_list, Board, pv);
 
 	Board_State Temp_Board = Board;
-	for (int i = 0; i < Move_List.count; i++) {
+	for (int i = 0; i < move_list.count; i++) {
 		pv.ply++;
-		Make_Move(Temp_Board, Move_List.moves[i]);
+		Make_Move(Temp_Board, move_list.moves[i]);
 		if (Board.side == white && Is_Square_Attacked(Least_Signifigant_Bit_Index(Temp_Board.Bitboards[K]), black, Temp_Board)) {
 			pv.ply--;
 			Temp_Board = Board;
@@ -187,72 +187,106 @@ static inline int Capture_Negamax_Search(int alpha, int beta, PV& pv, const Boar
 	return alpha;
 }
 
-static inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const Board_State& Board) {
+const int full_depth_moves = 4;
+const int reduction_limit = 3;
+
+static inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const Board_State& board) {
 
 	pv.pv_length[pv.ply] = pv.ply;
 
 	if (depth == 0) {
-		return Capture_Negamax_Search(alpha, beta, pv, Board);
+		return Capture_Negamax_Search(alpha, beta, pv, board);
 	}
 
 	if (pv.ply >= max_ply) {
-		return Evaluate(Board);
+		return Evaluate(board);
 	}
 
 	pv.nodes++;
 
 	int old_alpha = alpha;
 
-	bool Found_Move_Flag = false;
+	bool found_move_flag = false;
+
+	int moves_searched = 0;
 
 	moves Move_List;
 	Move_List.count = 0;
-	Generate_Sudo_Legal_Moves(Board, Move_List);
+	Generate_Sudo_Legal_Moves(board, Move_List);
 
 	if (pv.follow_pv_flag) {
 		Enable_PV_scoring(Move_List, pv);
 	}
 
-	Sort_Moves(Move_List, Board, pv);
+	Sort_Moves(Move_List, board, pv);
 
 	int Legal_Moves = 0;
-	bool in_check = Is_Square_Attacked((Board.side == white) ? Least_Signifigant_Bit_Index(Board.Bitboards[K]) : Least_Signifigant_Bit_Index(Board.Bitboards[k]), Board.side ^ 1, Board);
+	bool in_check = Is_Square_Attacked((board.side == white) ? Least_Signifigant_Bit_Index(board.Bitboards[K]) : Least_Signifigant_Bit_Index(board.Bitboards[k]), board.side ^ 1, board);
 
 	if (in_check) {
 		depth++;
 	}
 
+	if (depth >= 3 && !in_check && pv.ply) {
+		Board_State null_move_board = board;
+		null_move_board.side ^= 1;
+		null_move_board.en_passant = no_sq;
 
-	Board_State Temp_Board = Board;
+		int null_move_score = -Negamax_Search(-beta, -beta + 1, depth - 3, pv, board);
+
+		if (null_move_score >= beta) {
+			return beta;
+		}
+
+	}
+
+	Board_State temp_board = board;
 	for (int i = 0; i < Move_List.count; i++) {
 		pv.ply++;
-		Make_Move(Temp_Board, Move_List.moves[i]);
-		if (Board.side == white && Is_Square_Attacked(Least_Signifigant_Bit_Index(Temp_Board.Bitboards[K]), black, Temp_Board)) {
+		Make_Move(temp_board, Move_List.moves[i]);
+		if (board.side == white && Is_Square_Attacked(Least_Signifigant_Bit_Index(temp_board.Bitboards[K]), black, temp_board)) {
 			pv.ply--;
-			Temp_Board = Board;
+			temp_board = board;
 			continue;
 		}
-		else if (Board.side == black && Is_Square_Attacked(Least_Signifigant_Bit_Index(Temp_Board.Bitboards[k]), white, Temp_Board)) {
+		else if (board.side == black && Is_Square_Attacked(Least_Signifigant_Bit_Index(temp_board.Bitboards[k]), white, temp_board)) {
 			pv.ply--;
-			Temp_Board = Board;
+			temp_board = board;
 			continue;
 		}
 		Legal_Moves++;
 
 		int score;
 
-		if (Found_Move_Flag) {
-			score = -Negamax_Search(-alpha - 1, -alpha, depth - 1, pv, Temp_Board);
+		if (found_move_flag) {
+			score = -Negamax_Search(-alpha - 1, -alpha, depth - 1, pv, temp_board);
 			if ((score > alpha) && (score < beta)) {
-				score = -Negamax_Search(-beta, -alpha, depth - 1, pv, Temp_Board);
+				score = -Negamax_Search(-beta, -alpha, depth - 1, pv, temp_board);
 			}
 		}
+		else if (moves_searched == 0) {
+			score = -Negamax_Search(-beta, -alpha, depth - 1, pv, temp_board);
+		}
 		else {
-			score = -Negamax_Search(-beta, -alpha, depth - 1, pv, Temp_Board);
+	
+			if (moves_searched >= full_depth_moves && depth >= reduction_limit && !in_check && !get_move_capture(Move_List.moves[i]) &&!get_move_promoted(Move_List.moves[i])) {
+				score = -Negamax_Search(-alpha - 1, -alpha, depth - 2, pv, temp_board);
+			}
+			else {
+				score = alpha + 1;
+			}
+
+			if (score > alpha) {
+				score = -Negamax_Search(-alpha - 1, -alpha, depth - 1, pv, temp_board);
+				if ((score > alpha) && (score < beta)) {
+					score = -Negamax_Search(-beta, -alpha, depth - 1, pv, temp_board);
+				}
+			}
 		}
 
 		pv.ply--;
-		Temp_Board = Board;
+		temp_board = board;
+		moves_searched++;
 
 		if (score >= beta) {
 
@@ -267,7 +301,7 @@ static inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const B
 
 			alpha = score;
 
-			Found_Move_Flag = true;
+			found_move_flag = true;
 
 			if (!get_move_capture(Move_List.moves[i])) {
 				pv.history_moves[get_move_piece(Move_List.moves[i])][get_move_target(Move_List.moves[i])] += depth;
@@ -294,7 +328,7 @@ static inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const B
 	return alpha;
 }
 
-void Bartholomew(Board_State& Board) {
+void Bartholomew(Board_State& Board, int depth) {
 
 	std::string Promoted_Peices = " NBRQ  nbrqk";
 
@@ -302,17 +336,22 @@ void Bartholomew(Board_State& Board) {
 
 	int score = 0;
 
-	for (int current_depth = 1; current_depth < 8; current_depth++) {
+	for (int current_depth = 1; current_depth <= depth; current_depth++) {
 		pv.follow_pv_flag = true;
 		score = Negamax_Search(-100000, 100000, current_depth, pv, Board);
 	}
-	//std::cout << "nodes searched = " << pv.nodes << '\n';
 
-	if (pv.pv_table[0][0] == 0) {
-		std::cout << "Game over\n";
-	}
-	else {
+	if (pv.pv_table[0][0]) {
 		Make_Move(Board, pv.pv_table[0][0]);
 	}
-
+	
+	for (int i = 0; i < pv.pv_length[0]; i++) {
+		Print_Move(pv.pv_table[0][i]);
+		std::cout << " ";
+	}
+	std::cout << std::endl;
+	std::cout << "bestmove ";
+	Print_Move(pv.pv_table[0][0]);
+	std::cout << std::endl;
+	
 }
