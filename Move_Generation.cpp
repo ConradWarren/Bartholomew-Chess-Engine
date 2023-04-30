@@ -86,6 +86,17 @@ const int update_castling_rights[64] = {
 	13,15,15,15,12,15,15,14
 };
 
+const char* square_to_Human_Readable_Format[] = {
+"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
+"a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
+"a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
+"a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
+"a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
+"a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
+"a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
+"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1"
+};
+
 //Enums
 enum {
 	a8, b8, c8, d8, e8, f8, g8, h8,
@@ -106,18 +117,6 @@ enum { WK = 1, WQ = 2, BK = 4, BQ = 8 };
 
 enum { P, N, B, R, Q, K, p, n, b, r, q, k };
 
-const char* Square_to_Human_Readable_Format[] = {	
-"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
-"a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
-"a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
-"a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
-"a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
-"a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
-"a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
-"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1"
-};
-
-
 U64 Pawn_Attack_Table[2][64];
 U64 Knight_Attack_Table[64];
 U64 King_Attack_Table[64];
@@ -128,7 +127,42 @@ U64 Rook_Masks[64];
 U64 Bishop_Attack_Table[64][512];	
 U64 Rook_Attack_Table[64][4096];
 
-int Least_Signifigant_Bit_Index(const U64& bitboard) {
+void Print_Board_State(const Board_State& Board) {
+
+	char ascii_pieces[] = "PNBRQKpnbrqk";
+
+	for (int rank = 0; rank < 8; rank++) {
+		std::cout << (8 - rank) << "  ";
+		for (int file = 0; file < 8; file++) {
+			int square = (rank * 8) + file;
+			int Peice = -1;
+			for (int i = 0; i < 12; i++) {
+				if (get_bit(Board.Bitboards[i], square)) {
+					Peice = i;
+					break;
+				}
+			}
+			if (Peice == -1) std::cout << " .";
+			else std::cout << " " << ascii_pieces[Peice];
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n    a b c d e f g h\n\n";
+
+	if (Board.side == white) std::cout << "White to move\n";
+	else std::cout << "Black to move\n";
+	if (Board.en_passant != no_sq) std::cout << "En_Passant: " << square_to_Human_Readable_Format[Board.en_passant] << "\n";
+
+	if (Board.castling_rights) {
+		std::cout << "Castiling rights: \n";
+		if (Board.castling_rights & WK) std::cout << "   White_Kingside\n";
+		if (Board.castling_rights & WQ) std::cout << "   White_Queenside\n";
+		if (Board.castling_rights & BK) std::cout << "   Black_Kingside\n";
+		if (Board.castling_rights & BQ) std::cout << "   Black_Queenside\n";
+	}
+}
+
+static inline int Least_Signifigant_Bit_Index(const U64& bitboard) {
 	if (bitboard) return int(count_bits((bitboard & (0 - bitboard)) - 1));
 	else return -1;
 }
@@ -981,7 +1015,7 @@ void Perft_Test(const Board_State& Board, int depth, long long& nodes) {
 		}
 		else {
 			long long cummulative_nodes = nodes;
-			std::cout << Square_to_Human_Readable_Format[get_move_source(Move_List.moves[Move])] << Square_to_Human_Readable_Format[get_move_target(Move_List.moves[Move])];
+			std::cout << square_to_Human_Readable_Format[get_move_source(Move_List.moves[Move])] << square_to_Human_Readable_Format[get_move_target(Move_List.moves[Move])];
 			std::cout << Promoted_Pieces[get_move_promoted(Move_List.moves[Move])] << ":";
 			Perft_Driver(Temp_Board, depth - 1, nodes);
 			std::cout << " " << nodes - cummulative_nodes << "\n";
@@ -991,9 +1025,7 @@ void Perft_Test(const Board_State& Board, int depth, long long& nodes) {
 
 }
 
-
-
-static inline int Evaluate(const Board_State& Board) {
+int Evaluate(const Board_State& Board) {
 
 	int Eval = 0;
 
@@ -1074,4 +1106,6 @@ static inline int Evaluate(const Board_State& Board) {
 
 	return (Board.side == white) ? Eval : -Eval;
 }
+
+
 
