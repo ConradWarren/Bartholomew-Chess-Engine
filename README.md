@@ -1,4 +1,4 @@
 # Bartholomew-Chess-Engine
-Bartholomew is a Chess Engine which relies on a bitboard representation of the game while utilizing a negamax search algorithm. Current rating is approximatly 2700 elo. This project is a work in progress and updates will be listed here. 
+Bartholomew is a UCI Chess Engine, curently rated approximatly 2700 elo. This current version does not include any GUI, but analyzes chess positions and computes the optimal move. To connest this engine to your UCI GUI, check your GUI's documentation. 
 
-Currently the project only supports a custom UI that requires SDL and SDL image to run, however has a working peft test that does not require SDL or SDL image to run. In the future the project will also support the Area Chess Gui. 
+
