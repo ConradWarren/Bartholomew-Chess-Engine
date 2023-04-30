@@ -1,6 +1,8 @@
 #pragma once
 #define U64 unsigned long long
 
+void Print_Board_State(const Board_State& Board);
+
 void Init_Pre_Calculation();
 
 bool Is_Square_Attacked(int square, int side, const Board_State& Board);
@@ -13,4 +15,4 @@ void Make_Move(Board_State& Board, int move);
 
 void Perft_Test(const Board_State& Board, int depth, long long& nodes);
 
-static inline int Evaluate(const Board_State& Board);
+int Evaluate(const Board_State& Board);
