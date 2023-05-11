@@ -89,8 +89,7 @@ int Parse_Move(const Board_State& board, std::string move_string) {
 void Parse_Position(Board_State& board, std::string position) {
 
 	if (position == "position startpos") {
-		Board_State new_board = Board_State();
-		board = new_board;
+		board = Board_State();
 		return;
 	}
 
@@ -98,20 +97,16 @@ void Parse_Position(Board_State& board, std::string position) {
 	std::string current_move;
 
 	if (moves_idx == std::string::npos) {
-		Board_State new_board = Board_State(position.substr(13));
-		board = new_board;
+		board = Board_State(position.substr(13));
 		return;
 	}
 	else if (int(moves_idx) == 18) {
-		Board_State new_board = Board_State();
-		board = new_board;
+		board = Board_State();
 	}
 	else {
-		Board_State new_board = Board_State(position.substr(13, moves_idx-14));
-		board = new_board;
+		board = Board_State(position.substr(13, moves_idx-14));
 	}
 
-	
 	for (int i = int(moves_idx)+6; i < position.length(); i++) {
 
 		if (position[i] != ' ') current_move += position[i];
@@ -128,7 +123,6 @@ void Parse_Position(Board_State& board, std::string position) {
 		if (move) Make_Move(board, move);
 		current_move.clear();
 	}
-
 
 }
 
@@ -157,7 +151,6 @@ void Parse_Go(Board_State& board, std::string go_command) {
 	if (depth > 0) {
 		Bartholomew(board, depth);
 	}
-
 }
 
 void UCI_Loop(Board_State& board) {
@@ -182,23 +175,19 @@ void UCI_Loop(Board_State& board) {
 
 			if (message.substr(0, 8) == "position") {
 				Parse_Position(board, message);
-				
 			}
 
 			else if (message.substr(0, 10) == "ucinewgame") {
 				Parse_Position(board, "position startpos");
-				
 			}
 
 			else if (message.substr(0, 2) == "go") {
 				Parse_Go(board, message);
-				
 			}
 			
 			else if (message.substr(0, 4) == "quit") {
 				break;
 			}
-
 		}
 	}
 
