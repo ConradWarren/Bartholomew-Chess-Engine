@@ -220,24 +220,11 @@ static inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const B
 
 	Sort_Moves(Move_List, board, pv);
 
-	int Legal_Moves = 0;
+	int legal_moves = 0;
 	bool in_check = Is_Square_Attacked((board.side == white) ? Least_Signifigant_Bit_Index(board.Bitboards[K]) : Least_Signifigant_Bit_Index(board.Bitboards[k]), board.side ^ 1, board);
 
 	if (in_check) {
 		depth++;
-	}
-
-	if (depth >= 3 && !in_check && pv.ply) {
-		Board_State null_move_board = board;
-		null_move_board.side ^= 1;
-		null_move_board.en_passant = no_sq;
-
-		int null_move_score = -Negamax_Search(-beta, -beta + 1, depth - 3, pv, board);
-
-		if (null_move_score >= beta) {
-			return beta;
-		}
-
 	}
 
 	Board_State temp_board = board;
@@ -254,7 +241,7 @@ static inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const B
 			temp_board = board;
 			continue;
 		}
-		Legal_Moves++;
+		legal_moves++;
 
 		int score;
 
@@ -316,7 +303,7 @@ static inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const B
 		}
 	}
 
-	if (Legal_Moves == 0) {
+	if (legal_moves == 0) {
 		if (in_check) {
 			return -99000 + pv.ply;
 		}
@@ -349,9 +336,9 @@ void Bartholomew(Board_State& Board, int depth) {
 		Print_Move(pv.pv_table[0][i]);
 		std::cout << " ";
 	}
-	std::cout << std::endl;
+	std::cout << '\n';
 	std::cout << "bestmove ";
 	Print_Move(pv.pv_table[0][0]);
-	std::cout << std::endl;
+	std::cout << '\n';
 	
 }
