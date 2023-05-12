@@ -869,16 +869,23 @@ void Make_Move(Board_State& Board, int move) {
 	int Target_sq = get_move_target(move);
 	int Promoted = get_move_promoted(move);
 
+	if (Board.en_passant != no_sq) {
+		Board.position_key ^= en_passant_keys[Board.en_passant];
+	}
+
 	if (get_move_capture(move)) {
 
 		pop_bit(Board.Bitboards[Peice], Source_sq);
 		set_bit(Board.Bitboards[Peice], Target_sq);
 
+		Board.position_key ^= piece_keys[Peice][Source_sq];
+		Board.position_key ^= piece_keys[Peice][Target_sq];
 
 		if (Board.side == white) {
 			for (int i = p; i <= k; i++) {
 				if (get_bit(Board.Bitboards[i], Target_sq)) {
 					pop_bit(Board.Bitboards[i], Target_sq);
+					Board.position_key ^= piece_keys[i][Target_sq];
 					break;
 				}
 			}
@@ -887,6 +894,7 @@ void Make_Move(Board_State& Board, int move) {
 			for (int i = P; i <= K; i++) {
 				if (get_bit(Board.Bitboards[i], Target_sq)) {
 					pop_bit(Board.Bitboards[i], Target_sq);
+					Board.position_key ^= piece_keys[i][Target_sq];
 					break;
 				}
 			}
@@ -895,9 +903,11 @@ void Make_Move(Board_State& Board, int move) {
 		if (get_move_enpassant(move)) {
 			if (Board.side == white) {
 				pop_bit(Board.Bitboards[p], (Target_sq + 8));
+				Board.position_key ^= piece_keys[p][Target_sq+8];
 			}
 			else {
 				pop_bit(Board.Bitboards[P], (Target_sq - 8));
+				Board.position_key ^= piece_keys[P][Target_sq - 8];
 			}
 		}
 		Board.en_passant = no_sq;
@@ -905,15 +915,19 @@ void Make_Move(Board_State& Board, int move) {
 	else {
 
 		pop_bit(Board.Bitboards[Peice], Source_sq);
-
 		set_bit(Board.Bitboards[Peice], Target_sq);
+
+		Board.position_key ^= piece_keys[Peice][Source_sq];
+		Board.position_key ^= piece_keys[Peice][Target_sq];
 
 		if (get_move_doublepush(move)) {
 			if (Board.side == white) {
 				Board.en_passant = (Source_sq - 8);
+				Board.position_key ^= en_passant_keys[(Source_sq - 8)];
 			}
 			else {
 				Board.en_passant = (Source_sq + 8);
+				Board.position_key ^= en_passant_keys[(Source_sq + 8)];
 			}
 		}
 		else {
@@ -925,21 +939,29 @@ void Make_Move(Board_State& Board, int move) {
 				if (Target_sq == g1) {
 					pop_bit(Board.Bitboards[R], h1);
 					set_bit(Board.Bitboards[R], f1);
+					Board.position_key ^= piece_keys[R][h1];
+					Board.position_key ^= piece_keys[R][f1];
 				}
 				else {
 					pop_bit(Board.Bitboards[R], a1);
 					set_bit(Board.Bitboards[R], d1);
+					Board.position_key ^= piece_keys[R][a1];
+					Board.position_key ^= piece_keys[R][d1];
 				}
 			}
 			else {
 				if (Target_sq == g8) {
 					pop_bit(Board.Bitboards[r], h8);
 					set_bit(Board.Bitboards[r], f8);
+					Board.position_key ^= piece_keys[r][h8];
+					Board.position_key ^= piece_keys[r][f8];
 
 				}
 				else {
 					pop_bit(Board.Bitboards[r], a8);
 					set_bit(Board.Bitboards[r], d8);
+					Board.position_key ^= piece_keys[r][a8];
+					Board.position_key ^= piece_keys[r][d8];
 				}
 			}
 		}
@@ -948,11 +970,21 @@ void Make_Move(Board_State& Board, int move) {
 	if (Promoted) {
 		pop_bit(Board.Bitboards[Peice], Target_sq);
 		set_bit(Board.Bitboards[Promoted], Target_sq);
+		Board.position_key ^= piece_keys[Peice][Target_sq];
+		Board.position_key ^= piece_keys[Promoted][Target_sq];
 	}
 
 	if (Board.castling_rights) {
+
+		U64 test = Board.position_key;
+
+		Board.position_key ^= castle_keys[Board.castling_rights];
+
 		Board.castling_rights &= update_castling_rights[Source_sq];
 		Board.castling_rights &= update_castling_rights[Target_sq];
+
+		Board.position_key ^= castle_keys[Board.castling_rights];
+
 	}
 
 	Board.Occupancies[white] = 0ULL;
@@ -966,7 +998,9 @@ void Make_Move(Board_State& Board, int move) {
 	}
 	Board.Occupancies[both] = (Board.Occupancies[white] | Board.Occupancies[black]);
 
-	Board.side = (Board.side + 1) % 2;
+	Board.side ^= 1;
+
+	Board.position_key ^= side_key;
 }
 
 void Perft_Driver(const Board_State& Board, int depth, long long& nodes) {
@@ -979,8 +1013,6 @@ void Perft_Driver(const Board_State& Board, int depth, long long& nodes) {
 	moves Move_List;
 	Move_List.count = 0;
 	Generate_Sudo_Legal_Moves(Board, Move_List);
-
-
 
 	Board_State Temp_Board = Board;
 	for (int Move = 0; Move < Move_List.count; Move++) {
