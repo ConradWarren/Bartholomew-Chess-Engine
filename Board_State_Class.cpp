@@ -1,9 +1,36 @@
 #include <string>
 #include <unordered_map>
+#include <nmmintrin.h>
 
 #include "Board_State_Class.h"
+#include "Random_Number_Generation.h"
 
 #define set_bit(bitboard, square) ((bitboard) |= (1ULL << (square)))
+#define pop_bit(bitboard, square) ((bitboard) &= ~(1ULL << (square)))
+#define count_bits(bitboard) int(_mm_popcnt_u64(bitboard))
+
+U64 piece_keys[12][64];
+U64 en_passant_keys[64];
+U64 castle_keys[16];
+U64 side_key;
+
+void Init_Zobrist_Keys() {
+
+	for (int piece = 0; piece <= 11; piece++) {
+		for (int square = 0; square < 64; square++) {
+			piece_keys[piece][square] = Get_Random_U64_number();
+		}
+	}
+
+	for (int square = 0; square < 64; square++) {
+		en_passant_keys[square] = Get_Random_U64_number();
+	}
+
+	for (int i = 0; i < 16; i++) {
+		castle_keys[i] = Get_Random_U64_number();
+	}
+	side_key = Get_Random_U64_number();
+}
 
 Board_State::Board_State(std::string Fen) {
 	for (int i = 0; i < 12; i++) Bitboards[i] = 0ULL;
@@ -55,6 +82,8 @@ Board_State::Board_State(std::string Fen) {
 		Occupancies[1] |= Bitboards[i];
 	}
 	Occupancies[2] = (Occupancies[0] | Occupancies[1]);
+
+	position_key = Generate_Zobrist_Key();
 }
 
 
@@ -86,8 +115,38 @@ Board_State::Board_State() {
 	for (int i = 6; i < 12; i++) Occupancies[1] |= Bitboards[i];
 
 	Occupancies[2] = (Occupancies[0] | Occupancies[1]);
+
+	position_key = 14485368118541779952;
 }
 
 Board_State::~Board_State() {
 
+}
+
+U64 Board_State::Generate_Zobrist_Key() {
+
+	U64 zobrist_key = 0ULL;
+
+	U64 zobrist_bitboard = 0ULL;
+
+	for (int i = 0; i < 12; i++) {
+		zobrist_bitboard = Bitboards[i];
+		while (zobrist_bitboard) {
+			int square = int(count_bits((zobrist_bitboard & (0 - zobrist_bitboard)) - 1));
+			zobrist_key ^= piece_keys[i][square];
+			pop_bit(zobrist_bitboard, square);
+		}
+	}
+
+	if (en_passant != 64) {
+		zobrist_key ^= en_passant_keys[en_passant];
+	}
+
+	zobrist_key ^= castle_keys[castling_rights];
+
+	if (side) {
+		zobrist_key ^= side_key;
+	}
+
+	return zobrist_key;
 }
