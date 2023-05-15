@@ -2,13 +2,15 @@
 #include "PV_Class.h"
 #include "Search.h"
 #include "Move_Generation.h"
+#include "Transposition_Table_Class.h"
 #include "UCI_Interface.h"
-
 
 #include <iostream>
 #include <nmmintrin.h>
 
+#define U64 unsigned long long
 #define get_bit(bitboard, square) ((bitboard) & (1ULL << (square)))
+#define pop_bit(bitboard, square) ((bitboard) &= ~(1ULL << (square)))
 #define count_bits(bitboard) int(_mm_popcnt_u64(bitboard))
 
 #define get_move_source(move) (move & 0x3f)
@@ -19,6 +21,8 @@
 #define get_move_doublepush(move) ((move & 0x200000) >> 21)		
 #define get_move_enpassant(move) ((move & 0x400000) >> 22)
 #define get_move_castle(move) ((move & 0x800000) >> 23)
+
+
 
 enum {
 	a8, b8, c8, d8, e8, f8, g8, h8,
@@ -39,6 +43,13 @@ enum { WK = 1, WQ = 2, BK = 4, BQ = 8 };
 
 enum { P, N, B, R, Q, K, p, n, b, r, q, k };
 
+const int hash_size = 0x400000;
+const int no_hash_entry = 1000000;
+
+const int hash_flag_exact = 0;
+const int hash_flag_alpha = 1;
+const int hash_flag_beta = 2;
+
 const static int mvv_lva[12][12] = {
 	105, 205, 305, 405, 505, 605,  105, 205, 305, 405, 505, 605,
 	104, 204, 304, 404, 504, 604,  104, 204, 304, 404, 504, 604,
@@ -55,12 +66,56 @@ const static int mvv_lva[12][12] = {
 	100, 200, 300, 400, 500, 600,  100, 200, 300, 400, 500, 600
 };
 
+transpostion_table transpositon_cache[hash_size];
+
+void Clear_Transposition_Cache() {
+
+	transpostion_table empty_hash = transpostion_table();
+	
+	for (int i = 0; i < hash_size; i++) {
+		transpositon_cache[i] = empty_hash;
+	}
+
+}
+
+int Read_Table_Entry(int alpha, int beta, int depth, U64 key) {
+
+	transpostion_table* entry = &transpositon_cache[int((key % hash_size))];
+
+	if (entry->key == key && entry->depth == depth) {
+		
+		if (entry->flag == hash_flag_exact) {
+			return entry->value;
+		}
+
+		if (entry->flag == hash_flag_alpha && entry->value <= alpha) {
+			return alpha;
+		}
+
+		if (entry->flag == hash_flag_beta && entry->value >= beta) {
+			return beta;
+		}
+	}
+
+	return no_hash_entry;
+}
+
+void Add_Table_Entry(int score, int depth, int hash_flag, U64 key) {
+
+	transpostion_table* entry = &transpositon_cache[int((key % hash_size))];
+
+	entry->key = key;
+	entry->value = score;
+	entry->depth = depth;
+	entry->flag = hash_flag;
+}
+
 static int Least_Signifigant_Bit_Index(const U64& bitboard) {
 	if (bitboard) return int(count_bits((bitboard & (0 - bitboard)) - 1));
 	else return -1;
 }
 
-static inline void Enable_PV_scoring(const moves& Move_List, PV& pv) {
+inline void Enable_PV_scoring(const moves& Move_List, PV& pv) {
 
 	pv.follow_pv_flag = false;
 
@@ -76,7 +131,7 @@ static inline void Enable_PV_scoring(const moves& Move_List, PV& pv) {
 	}
 }
 
-static inline int Score_Move(int move, const Board_State& Board, PV& pv) {
+inline int Score_Move(int move, const Board_State& Board, PV& pv) {
 
 	if (pv.score_pv_flag && pv.pv_table[0][pv.ply] == move) {
 		pv.score_pv_flag = false;
@@ -107,7 +162,7 @@ static inline int Score_Move(int move, const Board_State& Board, PV& pv) {
 
 }
 
-static inline void Sort_Moves(moves& move_list, const Board_State& Board, PV& pv) {
+inline void Sort_Moves(moves& move_list, const Board_State& Board, PV& pv) {
 
 	int move_score[256];
 
@@ -135,7 +190,7 @@ static inline void Sort_Moves(moves& move_list, const Board_State& Board, PV& pv
 		}
 	}
 }
-static inline int Capture_Negamax_Search(int alpha, int beta, PV& pv, const Board_State& Board) {
+inline int Capture_Negamax_Search(int alpha, int beta, PV& pv, const Board_State& Board) {
 
 	pv.nodes++;
 
@@ -190,7 +245,16 @@ static inline int Capture_Negamax_Search(int alpha, int beta, PV& pv, const Boar
 const int full_depth_moves = 4;
 const int reduction_limit = 3;
 
-static inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const Board_State& board) {
+inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const Board_State& board) {
+
+
+	int hash_flag = hash_flag_alpha;
+
+	int score = Read_Table_Entry(alpha, beta, depth, board.position_key);
+	
+	if (score != no_hash_entry) {
+		return score;
+	}
 
 	pv.pv_length[pv.ply] = pv.ply;
 
@@ -203,8 +267,6 @@ static inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const B
 	}
 
 	pv.nodes++;
-
-	int old_alpha = alpha;
 
 	bool found_move_flag = false;
 
@@ -243,7 +305,7 @@ static inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const B
 		}
 		legal_moves++;
 
-		int score;
+		
 
 		if (found_move_flag) {
 			score = -Negamax_Search(-alpha - 1, -alpha, depth - 1, pv, temp_board);
@@ -277,6 +339,8 @@ static inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const B
 
 		if (score >= beta) {
 
+			Add_Table_Entry(beta, depth, hash_flag_beta, temp_board.position_key);
+
 			if (!get_move_capture(Move_List.moves[i])) {
 				pv.killer_moves[1][pv.ply] = pv.killer_moves[0][pv.ply];
 				pv.killer_moves[0][pv.ply] = Move_List.moves[i];
@@ -285,6 +349,8 @@ static inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const B
 		}
 
 		if (score > alpha) {
+
+			hash_flag = hash_flag_exact;
 
 			alpha = score;
 
@@ -312,17 +378,16 @@ static inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const B
 		}
 	}
 
+	Add_Table_Entry(alpha, depth, hash_flag, board.position_key);
+
 	return alpha;
 }
 
 void Bartholomew(Board_State& Board, int depth) {
 
-	std::string Promoted_Peices = " NBRQ  nbrqk";
-
 	PV pv = PV();
 
 	int score = 0;
-
 	for (int current_depth = 1; current_depth <= depth; current_depth++) {
 		pv.follow_pv_flag = true;
 		score = Negamax_Search(-100000, 100000, current_depth, pv, Board);
@@ -331,7 +396,6 @@ void Bartholomew(Board_State& Board, int depth) {
 	if (pv.pv_table[0][0]) {
 		Make_Move(Board, pv.pv_table[0][0]);
 	}
-	
 	for (int i = 0; i < pv.pv_length[0]; i++) {
 		Print_Move(pv.pv_table[0][i]);
 		std::cout << " ";
@@ -340,5 +404,4 @@ void Bartholomew(Board_State& Board, int depth) {
 	std::cout << "bestmove ";
 	Print_Move(pv.pv_table[0][0]);
 	std::cout << '\n';
-	
 }
