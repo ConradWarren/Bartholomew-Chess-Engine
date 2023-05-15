@@ -50,6 +50,9 @@ const int hash_flag_exact = 0;
 const int hash_flag_alpha = 1;
 const int hash_flag_beta = 2;
 
+const int full_depth_moves = 4;
+const int reduction_limit = 3;
+
 const static int mvv_lva[12][12] = {
 	105, 205, 305, 405, 505, 605,  105, 205, 305, 405, 505, 605,
 	104, 204, 304, 404, 504, 604,  104, 204, 304, 404, 504, 604,
@@ -242,9 +245,6 @@ inline int Capture_Negamax_Search(int alpha, int beta, PV& pv, const Board_State
 	return alpha;
 }
 
-const int full_depth_moves = 4;
-const int reduction_limit = 3;
-
 inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const Board_State& board) {
 
 
@@ -386,6 +386,8 @@ inline int Negamax_Search(int alpha, int beta, int depth, PV& pv, const Board_St
 void Bartholomew(Board_State& Board, int depth) {
 
 	PV pv = PV();
+
+	Clear_Transposition_Cache();
 
 	int score = 0;
 	for (int current_depth = 1; current_depth <= depth; current_depth++) {
