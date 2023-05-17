@@ -29,11 +29,14 @@ private:
 
 };
 
-class moves {
+class Moves {
 
 public:
 	int moves[256];
 	int count;
+
+	Moves();
+	void Add_Move(int move);
 };
 
 void Init_Zobrist_Keys();
