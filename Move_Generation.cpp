@@ -366,9 +366,7 @@ void Init_Sliding_Attack_Tables() {
 
 			Rook_Attack_Table[i][int(magic_index)] = Generate_Rook_Attacks(i, Occupancy);
 		}
-
 	}
-
 }
 
 void Init_Pre_Calculation() {
@@ -421,13 +419,8 @@ bool Is_Square_Attacked(int square, int side, const Board_State& Board) {
 	return false;
 }
 
-void Add_Move(moves& move_list, int Move) {
-	move_list.moves[move_list.count] = Move;
-	move_list.count++;
-}
 
-
-void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list) {
+void Generate_Sudo_Legal_Moves(const Board_State& Board, Moves& move_list) {
 
 	U64 Current_Bitboard, Attacks;
 
@@ -440,34 +433,34 @@ void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list) {
 			Target_sq = (Source_sq - 8);
 			if (!get_bit(Board.Occupancies[both], Target_sq)) {
 				if (Target_sq > 7) {
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, 0, 0, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, 0, 0, 0, 0, 0));
 				}
 				else {
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, Q, 0, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, R, 0, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, N, 0, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, B, 0, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, Q, 0, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, R, 0, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, N, 0, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, B, 0, 0, 0, 0));
 				}
 				if (Source_sq > 47 && !get_bit(Board.Occupancies[both], (Target_sq - 8))) {
-					Add_Move(move_list, encode_move(Source_sq, (Target_sq - 8), P, 0, 0, 1, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, (Target_sq - 8), P, 0, 0, 1, 0, 0));
 				}
 			}
 			Attacks = (Pawn_Attack_Table[white][Source_sq] & Board.Occupancies[black]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
 				if (Target_sq < 8) {
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, Q, 1, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, N, 1, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, R, 1, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, B, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, Q, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, N, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, R, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, B, 1, 0, 0, 0));
 				}
 				else {
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, 0, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, 0, 1, 0, 0, 0));
 				}
 				pop_bit(Attacks, Target_sq);
 			}
 			if (Board.en_passant != no_sq && get_bit(Pawn_Attack_Table[white][Source_sq], Board.en_passant)) {
-				Add_Move(move_list, encode_move(Source_sq, Board.en_passant, P, 0, 1, 0, 1, 0));
+				move_list.Add_Move(encode_move(Source_sq, Board.en_passant, P, 0, 1, 0, 1, 0));
 			}
 			pop_bit(Current_Bitboard, Source_sq);
 		}
@@ -477,13 +470,13 @@ void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list) {
 			Attacks = (Knight_Attack_Table[Source_sq] & ~Board.Occupancies[both]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, N, 0, 0, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, N, 0, 0, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			Attacks = (Knight_Attack_Table[Source_sq] & Board.Occupancies[black]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, N, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, N, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -494,13 +487,13 @@ void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list) {
 			Attacks = (Get_Bishop_Attacks(Source_sq, Board.Occupancies[both]) & ~Board.Occupancies[both]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, B, 0, 0, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, B, 0, 0, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			Attacks = Get_Bishop_Attacks(Source_sq, Board.Occupancies[both]) & Board.Occupancies[black];
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, B, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, B, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -511,13 +504,13 @@ void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list) {
 			Attacks = (Get_Rook_Attacks(Source_sq, Board.Occupancies[both]) & ~Board.Occupancies[both]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, R, 0, 0, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, R, 0, 0, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			Attacks = (Get_Rook_Attacks(Source_sq, Board.Occupancies[both]) & Board.Occupancies[black]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, R, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, R, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -528,13 +521,13 @@ void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list) {
 			Attacks = (Get_Queen_Attacks(Source_sq, Board.Occupancies[both]) & ~Board.Occupancies[both]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, Q, 0, 0, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, Q, 0, 0, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			Attacks = (Get_Queen_Attacks(Source_sq, Board.Occupancies[both]) & Board.Occupancies[black]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, Q, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, Q, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -542,22 +535,22 @@ void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list) {
 		Current_Bitboard = Board.Bitboards[5];
 		if (Current_Bitboard) {
 			if ((Board.castling_rights & WK) && !get_bit(Board.Occupancies[both], f1) && !get_bit(Board.Occupancies[both], g1) && !Is_Square_Attacked(e1, black, Board) && !Is_Square_Attacked(f1, black, Board)) {
-				Add_Move(move_list, encode_move(e1, g1, K, 0, 0, 0, 0, 1));
+				move_list.Add_Move(encode_move(e1, g1, K, 0, 0, 0, 0, 1));
 			}
 			if ((Board.castling_rights & WQ) && !get_bit(Board.Occupancies[both], d1) && !get_bit(Board.Occupancies[both], c1) && !get_bit(Board.Occupancies[both], b1) && !Is_Square_Attacked(e1, black, Board) && !Is_Square_Attacked(d1, black, Board)) {
-				Add_Move(move_list, encode_move(e1, c1, K, 0, 0, 0, 0, 1));
+				move_list.Add_Move(encode_move(e1, c1, K, 0, 0, 0, 0, 1));
 			}
 			Source_sq = Least_Signifigant_Bit_Index(Current_Bitboard);
 			Attacks = (King_Attack_Table[Source_sq] & ~Board.Occupancies[both]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, K, 0, 0, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, K, 0, 0, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			Attacks = (King_Attack_Table[Source_sq] & Board.Occupancies[black]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, K, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, K, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 
@@ -570,34 +563,34 @@ void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list) {
 			Target_sq = (Source_sq + 8);
 			if (!get_bit(Board.Occupancies[both], Target_sq)) {
 				if (Target_sq < 56) {
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, 0, 0, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, 0, 0, 0, 0, 0));
 				}
 				else {
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, q, 0, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, r, 0, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, n, 0, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, b, 0, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, q, 0, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, r, 0, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, n, 0, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, b, 0, 0, 0, 0));
 				}
 				if (Source_sq < 16 && !get_bit(Board.Occupancies[both], (Target_sq + 8))) {
-					Add_Move(move_list, encode_move(Source_sq, (Target_sq + 8), p, 0, 0, 1, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, (Target_sq + 8), p, 0, 0, 1, 0, 0));
 				}
 			}
 			Attacks = (Pawn_Attack_Table[black][Source_sq] & Board.Occupancies[white]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
 				if (Target_sq > 55) {
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, q, 1, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, r, 1, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, n, 1, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, b, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, q, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, r, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, n, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, b, 1, 0, 0, 0));
 				}
 				else {
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, 0, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, 0, 1, 0, 0, 0));
 				}
 				pop_bit(Attacks, Target_sq);
 			}
 			if (Board.en_passant != no_sq && get_bit(Pawn_Attack_Table[black][Source_sq], Board.en_passant)) {
-				Add_Move(move_list, encode_move(Source_sq, Board.en_passant, p, 0, 1, 0, 1, 0));
+				move_list.Add_Move(encode_move(Source_sq, Board.en_passant, p, 0, 1, 0, 1, 0));
 			}
 			pop_bit(Current_Bitboard, Source_sq);
 		}
@@ -607,13 +600,13 @@ void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list) {
 			Attacks = (Knight_Attack_Table[Source_sq] & ~Board.Occupancies[both]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, n, 0, 0, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, n, 0, 0, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			Attacks = (Knight_Attack_Table[Source_sq] & Board.Occupancies[white]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, n, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, n, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -624,13 +617,13 @@ void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list) {
 			Attacks = (Get_Bishop_Attacks(Source_sq, Board.Occupancies[both]) & ~Board.Occupancies[both]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, b, 0, 0, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, b, 0, 0, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			Attacks = Get_Bishop_Attacks(Source_sq, Board.Occupancies[both]) & Board.Occupancies[white];
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, b, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, b, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -641,13 +634,13 @@ void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list) {
 			Attacks = (Get_Rook_Attacks(Source_sq, Board.Occupancies[both]) & ~Board.Occupancies[both]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, r, 0, 0, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, r, 0, 0, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			Attacks = (Get_Rook_Attacks(Source_sq, Board.Occupancies[both]) & Board.Occupancies[white]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, r, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, r, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -658,13 +651,13 @@ void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list) {
 			Attacks = (Get_Queen_Attacks(Source_sq, Board.Occupancies[both]) & ~Board.Occupancies[both]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, q, 0, 0, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, q, 0, 0, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			Attacks = (Get_Queen_Attacks(Source_sq, Board.Occupancies[both]) & Board.Occupancies[white]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, q, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, q, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -672,22 +665,22 @@ void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list) {
 		Current_Bitboard = Board.Bitboards[11];
 		if (Current_Bitboard) {
 			if ((Board.castling_rights & BK) && !get_bit(Board.Occupancies[both], f8) && !get_bit(Board.Occupancies[both], g8) && !Is_Square_Attacked(e8, white, Board) && !Is_Square_Attacked(f8, white, Board)) {
-				Add_Move(move_list, encode_move(e8, g8, k, 0, 0, 0, 0, 1));
+				move_list.Add_Move(encode_move(e8, g8, k, 0, 0, 0, 0, 1));
 			}
 			if ((Board.castling_rights & BQ) && !get_bit(Board.Occupancies[both], d8) && !get_bit(Board.Occupancies[both], c8) && !get_bit(Board.Occupancies[both], b8) && !Is_Square_Attacked(e8, white, Board) && !Is_Square_Attacked(d8, white, Board)) {
-				Add_Move(move_list, encode_move(e8, c8, k, 0, 0, 0, 0, 1));
+				move_list.Add_Move(encode_move(e8, c8, k, 0, 0, 0, 0, 1));
 			}
 			Source_sq = Least_Signifigant_Bit_Index(Current_Bitboard);
 			Attacks = (King_Attack_Table[Source_sq] & ~Board.Occupancies[both]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, k, 0, 0, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, k, 0, 0, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			Attacks = (King_Attack_Table[Source_sq] & Board.Occupancies[white]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, k, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, k, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 
@@ -695,7 +688,7 @@ void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list) {
 	}
 }
 
-void Generate_Sudo_Legal_Captures(const Board_State& Board, moves& move_list) {
+void Generate_Sudo_Legal_Captures(const Board_State& Board, Moves& move_list) {
 
 	U64 Current_Bitboard, Attacks;
 
@@ -709,18 +702,18 @@ void Generate_Sudo_Legal_Captures(const Board_State& Board, moves& move_list) {
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
 				if (Target_sq < 8) {
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, Q, 1, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, N, 1, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, R, 1, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, B, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, Q, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, N, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, R, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, B, 1, 0, 0, 0));
 				}
 				else {
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, P, 0, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, P, 0, 1, 0, 0, 0));
 				}
 				pop_bit(Attacks, Target_sq);
 			}
 			if (Board.en_passant != no_sq && get_bit(Pawn_Attack_Table[white][Source_sq], Board.en_passant)) {
-				Add_Move(move_list, encode_move(Source_sq, Board.en_passant, P, 0, 1, 0, 1, 0));
+				move_list.Add_Move(encode_move(Source_sq, Board.en_passant, P, 0, 1, 0, 1, 0));
 			}
 			pop_bit(Current_Bitboard, Source_sq);
 		}
@@ -730,7 +723,7 @@ void Generate_Sudo_Legal_Captures(const Board_State& Board, moves& move_list) {
 			Attacks = (Knight_Attack_Table[Source_sq] & Board.Occupancies[black]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, N, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, N, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -741,7 +734,7 @@ void Generate_Sudo_Legal_Captures(const Board_State& Board, moves& move_list) {
 			Attacks = Get_Bishop_Attacks(Source_sq, Board.Occupancies[both]) & Board.Occupancies[black];
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, B, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, B, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -752,7 +745,7 @@ void Generate_Sudo_Legal_Captures(const Board_State& Board, moves& move_list) {
 			Attacks = (Get_Rook_Attacks(Source_sq, Board.Occupancies[both]) & Board.Occupancies[black]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, R, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, R, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -763,7 +756,7 @@ void Generate_Sudo_Legal_Captures(const Board_State& Board, moves& move_list) {
 			Attacks = (Get_Queen_Attacks(Source_sq, Board.Occupancies[both]) & Board.Occupancies[black]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, Q, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, Q, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -774,7 +767,7 @@ void Generate_Sudo_Legal_Captures(const Board_State& Board, moves& move_list) {
 			Attacks = (King_Attack_Table[Source_sq] & Board.Occupancies[black]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, K, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, K, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 
@@ -788,18 +781,18 @@ void Generate_Sudo_Legal_Captures(const Board_State& Board, moves& move_list) {
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
 				if (Target_sq > 55) {
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, q, 1, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, r, 1, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, n, 1, 0, 0, 0));
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, b, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, q, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, r, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, n, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, b, 1, 0, 0, 0));
 				}
 				else {
-					Add_Move(move_list, encode_move(Source_sq, Target_sq, p, 0, 1, 0, 0, 0));
+					move_list.Add_Move(encode_move(Source_sq, Target_sq, p, 0, 1, 0, 0, 0));
 				}
 				pop_bit(Attacks, Target_sq);
 			}
 			if (Board.en_passant != no_sq && get_bit(Pawn_Attack_Table[black][Source_sq], Board.en_passant)) {
-				Add_Move(move_list, encode_move(Source_sq, Board.en_passant, p, 0, 1, 0, 1, 0));
+				move_list.Add_Move(encode_move(Source_sq, Board.en_passant, p, 0, 1, 0, 1, 0));
 			}
 			pop_bit(Current_Bitboard, Source_sq);
 		}
@@ -809,7 +802,7 @@ void Generate_Sudo_Legal_Captures(const Board_State& Board, moves& move_list) {
 			Attacks = (Knight_Attack_Table[Source_sq] & Board.Occupancies[white]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, n, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, n, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -820,7 +813,7 @@ void Generate_Sudo_Legal_Captures(const Board_State& Board, moves& move_list) {
 			Attacks = Get_Bishop_Attacks(Source_sq, Board.Occupancies[both]) & Board.Occupancies[white];
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, b, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, b, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -832,7 +825,7 @@ void Generate_Sudo_Legal_Captures(const Board_State& Board, moves& move_list) {
 			Attacks = (Get_Rook_Attacks(Source_sq, Board.Occupancies[both]) & Board.Occupancies[white]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, r, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, r, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -843,7 +836,7 @@ void Generate_Sudo_Legal_Captures(const Board_State& Board, moves& move_list) {
 			Attacks = (Get_Queen_Attacks(Source_sq, Board.Occupancies[both]) & Board.Occupancies[white]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, q, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, q, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 			pop_bit(Current_Bitboard, Source_sq);
@@ -854,7 +847,7 @@ void Generate_Sudo_Legal_Captures(const Board_State& Board, moves& move_list) {
 			Attacks = (King_Attack_Table[Source_sq] & Board.Occupancies[white]);
 			while (Attacks) {
 				Target_sq = Least_Signifigant_Bit_Index(Attacks);
-				Add_Move(move_list, encode_move(Source_sq, Target_sq, k, 0, 1, 0, 0, 0));
+				move_list.Add_Move(encode_move(Source_sq, Target_sq, k, 0, 1, 0, 0, 0));
 				pop_bit(Attacks, Target_sq);
 			}
 
@@ -1010,8 +1003,7 @@ void Perft_Driver(const Board_State& Board, int depth, long long& nodes) {
 		return;
 	}
 
-	moves Move_List;
-	Move_List.count = 0;
+	Moves Move_List = Moves();
 	Generate_Sudo_Legal_Moves(Board, Move_List);
 
 	Board_State Temp_Board = Board;
@@ -1032,8 +1024,7 @@ void Perft_Driver(const Board_State& Board, int depth, long long& nodes) {
 
 void Perft_Test(const Board_State& Board, int depth, long long& nodes) {
 	char Promoted_Pieces[] = " nbrq  nbrq ";
-	moves Move_List;
-	Move_List.count = 0;
+	Moves Move_List = Moves();
 	Generate_Sudo_Legal_Moves(Board, Move_List);
 
 	Board_State Temp_Board = Board;
