@@ -8,8 +8,6 @@
 #include <iostream>
 
 
-
-
 #define count_bits(bitboard) int(_mm_popcnt_u64(bitboard))
 #define get_move_source(move) (move & 0x3f)
 #define get_move_target(move) ((move & 0xfc0) >> 6)
@@ -34,8 +32,7 @@ static int Least_Signifigant_Bit_Index(const U64& bitboard) {
 
 int Parse_Move(const Board_State& board, std::string move_string) {
 
-	moves move_list;
-	move_list.count = 0;
+	Moves move_list = Moves();
 
 	Generate_Sudo_Legal_Moves(board, move_list);
 
