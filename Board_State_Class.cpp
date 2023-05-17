@@ -150,3 +150,12 @@ U64 Board_State::Generate_Zobrist_Key() {
 
 	return zobrist_key;
 }
+
+Moves::Moves() {
+	count = 0;
+}
+
+void Moves::Add_Move(int input_move) {
+	moves[count] = input_move;
+	count++;
+}
