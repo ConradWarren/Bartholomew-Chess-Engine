@@ -7,9 +7,9 @@ void Init_Pre_Calculation();
 
 bool Is_Square_Attacked(int square, int side, const Board_State& Board);
 
-void Generate_Sudo_Legal_Moves(const Board_State& Board, moves& move_list);
+void Generate_Sudo_Legal_Moves(const Board_State& Board, Moves& move_list);
 
-void Generate_Sudo_Legal_Captures(const Board_State& Board, moves& move_list);
+void Generate_Sudo_Legal_Captures(const Board_State& Board, Moves& move_list);
 
 void Make_Move(Board_State& Board, int move);
 
